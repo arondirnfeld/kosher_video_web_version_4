@@ -26,7 +26,10 @@ curl -L "https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js" -o "static/
 # FFmpeg Util Library  
 curl -L "https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js" -o "static/ffmpeg-util.js"
 
-echo "✅ FFmpeg.wasm assets downloaded successfully!"
+# Anime.js for animations
+curl -L "https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" -o "static/anime.min.js"
+
+echo "✅ FFmpeg.wasm and other assets downloaded successfully!"
 
 # Set proper permissions
 chmod 644 static/*

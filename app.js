@@ -31,7 +31,7 @@ class KosherVideoProcessor {
         }
         
         await this.initializeWorker();
-        this.hideLoadingScreen();
+        // hideLoadingScreen() is now called when the worker is ready
     }
 
     cacheElements() {
@@ -183,212 +183,50 @@ class KosherVideoProcessor {
         });
     }
 
-    // ===== FFMPEG LOADING =====
-    async loadFFmpeg() {
-        this.ffmpegLoadAttempts++;
-        
-        try {
-            console.log(`Loading FFmpeg.wasm... (attempt ${this.ffmpegLoadAttempts})`);
-            
-            // Check for Cross-Origin Isolation support
-            if (typeof SharedArrayBuffer === 'undefined') {
-                console.warn('SharedArrayBuffer not available, trying fallback mode');
-            }
-            
-            // Wait for FFmpeg to be available with longer timeout
-            let retries = 0;
-            const maxRetries = 150; // Increased to 15 seconds for GitHub Pages
-            
-            while (typeof FFmpeg === 'undefined' && retries < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 100));
-                retries++;
-                
-                // Update loading text with progress
-                if (retries % 15 === 0) {
+    // ===== WORKER INITIALIZATION =====
+    async initializeWorker() {
+        this.worker = new Worker('./workers/video-processor.js');
+
+        this.worker.onmessage = (event) => {
+            const { type, payload } = event.data;
+
+            switch (type) {
+                case 'ffmpeg-loaded':
+                    console.log('FFmpeg loaded in worker');
                     const loadingText = document.querySelector('.loading-text h2');
                     if (loadingText) {
-                        loadingText.textContent = `Loading Libraries... ${Math.round((retries / maxRetries) * 100)}%`;
+                        loadingText.textContent = 'Ready to Transform!';
                     }
-                }
+                    setTimeout(() => this.hideLoadingScreen(), 500);
+                    break;
+                case 'processing-progress':
+                    this.updateProcessingProgress(payload.progress * 100);
+                    if (payload.message) {
+                        this.updateProcessingLog(payload.message);
+                    }
+                    break;
+                case 'processing-complete':
+                    this.isProcessing = false;
+                    this.processedFileData = new Uint8Array(payload.data);
+                    this.processedFileName = payload.fileName;
+                    this.showResults();
+                    break;
+                case 'processing-error':
+                    this.isProcessing = false;
+                    this.showErrorModal(payload.error);
+                    break;
+                case 'ffmpeg-load-error':
+                    this.showErrorModal('Failed to load the video processing engine. Please try refreshing the page.');
+                    break;
             }
-            
-            if (typeof FFmpeg === 'undefined') {
-                throw new Error('FFmpeg library not loaded after waiting 15 seconds');
-            }
-            
-            // Update loading text
-            const loadingText = document.querySelector('.loading-text h2');
-            if (loadingText) {
-                loadingText.textContent = 'Initializing Video Engine...';
-            }
-            
-            // Try different ways to access FFmpeg constructor
-            let FFmpegClass;
-            if (FFmpeg.FFmpeg) {
-                FFmpegClass = FFmpeg.FFmpeg;
-            } else if (typeof FFmpeg === 'function') {
-                FFmpegClass = FFmpeg;
-            } else {
-                throw new Error('FFmpeg constructor not found');
-            }
-            
-            this.ffmpeg = new FFmpegClass();
-            
-            // Set up progress logging
-            this.ffmpeg.on('log', ({ message }) => {
-                console.log('FFmpeg:', message);
-                if (this.isProcessing) {
-                    this.updateProcessingLog(message);
-                }
-            });
-
-            this.ffmpeg.on('progress', ({ progress }) => {
-                if (this.isProcessing) {
-                    this.updateProcessingProgress(progress * 100);
-                }
-            });
-
-            // Update loading text for core loading
-            if (loadingText) {
-                loadingText.textContent = 'Loading Core Engine...';
-            }
-
-            // Load FFmpeg with core and wasm files from CDN with fallback
-            const loadConfig = {
-                coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-                wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
-                // GitHub Pages compatibility options
-                classWorkerURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.worker.js'
-            };
-            
-            // Try loading with timeout for GitHub Pages
-            const loadPromise = this.ffmpeg.load(loadConfig);
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('FFmpeg load timeout after 30 seconds')), 30000)
-            );
-            
-            await Promise.race([loadPromise, timeoutPromise]);
-
-            console.log('FFmpeg.wasm loaded successfully!');
-            this.ffmpegLoadAttempts = 0; // Reset on success
-            
-            // Update loading text
-            if (loadingText) {
-                loadingText.textContent = 'Ready to Transform!';
-            }
-        } catch (error) {
-            console.error('Failed to load FFmpeg:', error);
-            
-            if (this.ffmpegLoadAttempts < this.maxLoadAttempts) {
-                console.log(`Retrying FFmpeg load in 3 seconds... (attempt ${this.ffmpegLoadAttempts + 1}/${this.maxLoadAttempts})`);
-                
-                // Update loading text to show retry
-                const loadingText = document.querySelector('.loading-text h2');
-                if (loadingText) {
-                    loadingText.textContent = `Retrying... (${this.ffmpegLoadAttempts + 1}/${this.maxLoadAttempts})`;
-                }
-                
-                setTimeout(() => {
-                    this.loadFFmpeg();
-                }, 3000);
-                return;
-            }
-            
-            // Show specific error after max attempts
-            let errorMessage = 'Failed to load video processing engine.\n\n';
-            
-            if (error.message.includes('not loaded') || error.message.includes('not found')) {
-                errorMessage += 'The video processing library could not be loaded. This may be due to:\n\n';
-                errorMessage += '• Slow internet connection\n';
-                errorMessage += '• Browser compatibility issues\n';
-                errorMessage += '• Ad blockers blocking resources\n';
-                
-                // GitHub Pages specific guidance
-                if (window.location.protocol === 'https:' && window.location.hostname.includes('github.io')) {
-                    errorMessage += '• GitHub Pages CORS configuration\n\n';
-                    errorMessage += 'For GitHub Pages, please try:\n';
-                    errorMessage += '1. Refreshing the page\n';
-                    errorMessage += '2. Waiting a moment for CDN resources to load\n';
-                    errorMessage += '3. Using a different browser (Chrome/Firefox recommended)\n';
-                    errorMessage += '4. Disabling ad blockers temporarily';
-                } else if (window.location.protocol === 'file:') {
-                    errorMessage += '• Local file restrictions (try using a web server)\n\n';
-                    errorMessage += 'Please try:\n';
-                    errorMessage += '1. Using a local web server (python -m http.server)\n';
-                    errorMessage += '2. Refreshing the page\n';
-                    errorMessage += '3. Disabling ad blockers\n';
-                    errorMessage += '4. Using a different browser (Chrome/Firefox recommended)';
-                } else {
-                    errorMessage += '\nPlease try:\n';
-                    errorMessage += '1. Refreshing the page\n';
-                    errorMessage += '2. Disabling ad blockers\n';
-                    errorMessage += '3. Using a different browser (Chrome/Firefox recommended)\n';
-                    errorMessage += '4. Checking your internet connection';
-                }
-            } else if (error.message.includes('network') || error.message.includes('fetch')) {
-                errorMessage += 'Network connection issue detected.\n\n';
-                errorMessage += 'Please check your internet connection and refresh the page.';
-            } else {
-                errorMessage += 'An unexpected error occurred.\n\n';
-                errorMessage += 'Please refresh the page and try again.';
-            }
-            
-            // Add manual retry button
-            this.showErrorWithRetry(errorMessage);
-        }
-    }
-
-    showErrorWithRetry(message) {
-        this.elements.errorMessage.innerHTML = message.replace(/\n/g, '<br>');
-        
-        // Add retry button
-        const retryButton = document.createElement('button');
-        retryButton.className = 'btn btn-primary';
-        retryButton.style.marginTop = '10px';
-        retryButton.innerHTML = '<i class="fas fa-redo"></i> Try Again';
-        retryButton.onclick = () => {
-            this.hideErrorModal();
-            this.ffmpegLoadAttempts = 0; // Reset attempts
-            this.loadFFmpeg();
         };
-        
-        const modalFooter = this.elements.errorModal.querySelector('.modal-footer');
-        modalFooter.insertBefore(retryButton, modalFooter.firstChild);
-        
-        this.elements.errorModal.classList.remove('hidden');
-        
-        // Animate modal
-        anime({
-            targets: '.modal-content',
-            scale: [0.8, 1],
-            opacity: [0, 1],
-            duration: 300,
-            easing: 'easeOutCubic'
-        });
-        
-        console.log('Error with retry displayed:', message);
-    }
 
-    hideLoadingScreen() {
-        // Only hide if FFmpeg loaded successfully
-        if (this.ffmpeg) {
-            setTimeout(() => {
-                this.elements.loadingScreen.classList.add('hidden');
-                this.elements.mainApp.classList.remove('hidden');
-                this.elements.mainApp.style.opacity = '1';
-                this.elements.mainApp.style.visibility = 'visible';
-                
-                // Animate main app entrance
-                anime({
-                    targets: '.section-content',
-                    translateY: [50, 0],
-                    opacity: [0, 1],
-                    duration: 800,
-                    delay: anime.stagger(200),
-                    easing: 'easeOutCubic'
-                });
-            }, 1000); // Reduced timeout since we wait for actual FFmpeg loading
-        }
+        this.worker.onerror = (error) => {
+            console.error('Worker error:', error);
+            this.showErrorModal('A critical error occurred with the processing worker.');
+        };
+
+        this.worker.postMessage({ type: 'load-ffmpeg' });
     }
 
     // ===== FILE HANDLING =====
@@ -438,156 +276,65 @@ class KosherVideoProcessor {
         });
     }
 
-    // ===== PROCESSING FUNCTIONS =====
-    async startSlideshowCreation() {
+    // ===== PROCESSING =====
+    startSlideshowCreation() {
         if (!this.currentFile || this.isProcessing) return;
 
-        const interval = parseFloat(this.elements.intervalSlider.value);
-        console.log(`Starting slideshow creation with ${interval}s interval`);
+        this.isProcessing = true;
+        this.currentOperation = 'slideshow';
+        this.showProcessingScreen();
 
-        this.showProcessingSection('Creating Slideshow', 'Extracting frames from your video...');
-        
-        try {
-            this.isProcessing = true;
-            this.startTime = Date.now();
-            this.updateElapsedTime();
+        const interval = this.elements.intervalSlider.value;
+        const outputFilename = `slideshow_${this.currentFile.name.split('.').slice(0, -1).join('.')}.mp4`;
 
-            // Read the input file
-            await this.ffmpeg.writeFile('input.mp4', await this.fileToUint8Array(this.currentFile));
-            
-            this.updateProcessingStage('Analyzing Video', 'Getting video information...');
-            
-            // Extract frames at specified interval
-            this.updateProcessingStage('Extracting Frames', `Taking screenshots every ${interval} seconds...`);
-            await this.ffmpeg.exec([
-                '-i', 'input.mp4',
-                '-vf', `fps=1/${interval}`,
-                '-y',
-                'frame_%03d.png'
-            ]);
-
-            // Extract audio
-            this.updateProcessingStage('Extracting Audio', 'Preserving original audio track...');
-            await this.ffmpeg.exec([
-                '-i', 'input.mp4',
-                '-vn',
-                '-acodec', 'copy',
-                '-y',
-                'audio.mp3'
-            ]);
-
-            // Create slideshow video
-            this.updateProcessingStage('Creating Slideshow', 'Combining frames with audio...');
-            await this.ffmpeg.exec([
-                '-framerate', `1/${interval}`,
-                '-i', 'frame_%03d.png',
-                '-i', 'audio.mp3',
-                '-c:v', 'libx264',
-                '-c:a', 'aac',
-                '-shortest',
-                '-pix_fmt', 'yuv420p',
-                '-y',
-                'slideshow.mp4'
-            ]);
-
-            // Read output file
-            const data = await this.ffmpeg.readFile('slideshow.mp4');
-            this.processedFile = {
-                data: data,
-                filename: `slideshow_${this.currentFile.name.replace(/\.[^/.]+$/, '')}.mp4`,
-                type: 'video/mp4'
-            };
-
-            this.showResults('Slideshow Created!', 'Your video has been converted to a slideshow with original audio.');
-            
-        } catch (error) {
-            console.error('Slideshow creation failed:', error);
-            this.showError('Failed to create slideshow. Please try again with a different file.');
-        } finally {
-            this.isProcessing = false;
-            this.cleanup();
-        }
+        this.worker.postMessage({
+            type: 'run-command',
+            payload: {
+                file: this.currentFile,
+                command: 'slideshow',
+                args: {
+                    interval,
+                    outputFilename
+                }
+            }
+        });
     }
 
-    async startAudioExtraction() {
+    startAudioExtraction() {
         if (!this.currentFile || this.isProcessing) return;
 
+        this.isProcessing = true;
+        this.currentOperation = 'audio-extract';
+        this.showProcessingScreen();
+
         const format = this.elements.audioFormat.value;
-        console.log(`Starting audio extraction to ${format} format`);
+        const outputFilename = `audio_${this.currentFile.name.split('.').slice(0, -1).join('.')}.${format}`;
 
-        this.showProcessingSection('Extracting Audio', 'Separating audio from your video...');
-        
-        try {
-            this.isProcessing = true;
-            this.startTime = Date.now();
-            this.updateElapsedTime();
-
-            // Read the input file
-            await this.ffmpeg.writeFile('input.mp4', await this.fileToUint8Array(this.currentFile));
-            
-            this.updateProcessingStage('Analyzing Video', 'Reading video file...');
-            
-            // Extract audio based on format
-            this.updateProcessingStage('Extracting Audio', `Converting to ${format.toUpperCase()} format...`);
-            
-            let codecArgs = [];
-            let outputFile = '';
-            
-            switch (format) {
-                case 'mp3':
-                    codecArgs = ['-acodec', 'libmp3lame', '-ab', '192k'];
-                    outputFile = 'audio.mp3';
-                    break;
-                case 'wav':
-                    codecArgs = ['-acodec', 'pcm_s16le'];
-                    outputFile = 'audio.wav';
-                    break;
-                case 'ogg':
-                    codecArgs = ['-acodec', 'libvorbis', '-ab', '192k'];
-                    outputFile = 'audio.ogg';
-                    break;
+        this.worker.postMessage({
+            type: 'run-command',
+            payload: {
+                file: this.currentFile,
+                command: 'extract-audio',
+                args: {
+                    format,
+                    outputFilename
+                }
             }
-
-            await this.ffmpeg.exec([
-                '-i', 'input.mp4',
-                '-vn',
-                ...codecArgs,
-                '-y',
-                outputFile
-            ]);
-
-            // Read output file
-            const data = await this.ffmpeg.readFile(outputFile);
-            this.processedFile = {
-                data: data,
-                filename: `audio_${this.currentFile.name.replace(/\.[^/.]+$/, '')}.${format}`,
-                type: `audio/${format}`
-            };
-
-            this.showResults('Audio Extracted!', `Your audio has been successfully extracted in ${format.toUpperCase()} format.`);
-            
-        } catch (error) {
-            console.error('Audio extraction failed:', error);
-            this.showError('Failed to extract audio. Please try again with a different file.');
-        } finally {
-            this.isProcessing = false;
-            this.cleanup();
-        }
+        });
     }
 
     // ===== UI UPDATE FUNCTIONS =====
-    showProcessingSection(title, details) {
-        this.elements.processingStage.textContent = title;
-        this.elements.processingDetails.textContent = details;
-        this.elements.processingStatus.textContent = 'Processing';
+    showProcessingScreen() {
+        this.elements.processingSection.classList.remove('hidden');
+        this.elements.resultsSection.classList.add('hidden');
+        
+        // Reset and show initial processing state
+        this.elements.processingStage.textContent = 'Initializing';
+        this.elements.processingDetails.textContent = 'Preparing video processing...';
+        this.elements.processingStatus.textContent = 'Starting';
         this.updateProcessingProgress(0);
         
-        // Hide other sections
-        this.elements.optionsSection.classList.add('hidden');
-        this.elements.resultsSection.classList.add('hidden');
-        this.elements.processingSection.classList.remove('hidden');
-        
-        // Animate processing section
+        // Animate processing section entrance
         anime({
             targets: '.processing-container',
             scale: [0.8, 1],
@@ -597,35 +344,21 @@ class KosherVideoProcessor {
         });
     }
 
-    updateProcessingStage(stage, details) {
-        this.elements.processingStage.textContent = stage;
-        this.elements.processingDetails.textContent = details;
-        this.elements.processingStatus.textContent = 'Processing';
-    }
-
     updateProcessingProgress(percent) {
-        percent = Math.min(100, Math.max(0, percent));
-        this.elements.processingProgress.style.width = `${percent}%`;
-        this.elements.processingPercent.textContent = `${Math.round(percent)}%`;
+        const p = Math.max(0, Math.min(100, percent));
+        this.elements.processingProgress.style.width = `${p}%`;
+        this.elements.processingPercent.textContent = `${Math.round(p)}%`;
     }
 
     updateProcessingLog(message) {
-        // Extract progress from FFmpeg log messages
-        const progressRegex = /time=(\d+):(\d+):(\d+\.\d+)/;
-        const match = message.match(progressRegex);
-        if (match) {
-            const hours = parseInt(match[1]);
-            const minutes = parseInt(match[2]);
-            const seconds = parseFloat(match[3]);
-            const totalSeconds = hours * 3600 + minutes * 60 + seconds;
-            
-            // Estimate progress (this is rough, real implementation would need duration)
-            const estimatedProgress = Math.min(90, (totalSeconds / 10) * 100);
-            this.updateProcessingProgress(estimatedProgress);
+        if (message.includes('frame=')) {
+            this.elements.processingStatus.textContent = `Processing... ${message.substring(message.indexOf('frame='))}`;
+        } else if (message.includes('size=')) {
+            this.elements.processingStatus.textContent = `Finalizing... ${message.substring(message.indexOf('size='))}`;
         }
     }
 
-    updateElapsedTime() {
+    updateTimer() {
         if (!this.isProcessing || !this.startTime) return;
         
         const elapsed = Date.now() - this.startTime;
@@ -641,7 +374,13 @@ class KosherVideoProcessor {
         }
     }
 
-    showResults(title, description) {
+    showResults() {
+        // Common success message
+        const title = this.currentOperation === 'slideshow' ? 'Slideshow Created!' : 'Audio Extracted!';
+        const description = this.currentOperation === 'slideshow' ? 
+            'Your video has been converted to a slideshow with original audio.' : 
+            `Your audio has been successfully extracted in ${this.elements.audioFormat.value.toUpperCase()} format.`;
+        
         this.elements.resultTitle.textContent = title;
         this.elements.resultDescription.textContent = description;
         
