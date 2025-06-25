@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kosher Video Processor - Magic Video Tools</title>
+    
+    <!-- GitHub Pages COOP/COEP Headers for FFmpeg.wasm -->
+    <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
+    
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#8b5cf6">
     <meta name="msapplication-TileColor" content="#8b5cf6">
@@ -258,9 +263,19 @@
     </div>
 
     <!-- Scripts -->
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" crossorigin="anonymous"></script>
+    
+    <!-- Fallback for FFmpeg if CDN fails -->
+    <script>
+        // Check if FFmpeg loaded, otherwise try fallback
+        if (typeof FFmpeg === 'undefined') {
+            console.warn('Primary FFmpeg CDN failed, trying fallback...');
+            document.write('<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js"><\/script>');
+        }
+    </script>
+    
     <script src="app.js"></script>
 </body>
 </html>

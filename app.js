@@ -3,12 +3,13 @@
 
 class KosherVideoProcessor {
     constructor() {
-        this.ffmpeg = null;
+        this.worker = null;
         this.currentFile = null;
         this.isProcessing = false;
         this.startTime = null;
-        this.ffmpegLoadAttempts = 0;
-        this.maxLoadAttempts = 3; // Increased to 3 attempts
+        this.processedFileData = null;
+        this.processedFileName = null;
+        this.currentOperation = null;
         
         // DOM elements
         this.elements = {};
@@ -29,7 +30,7 @@ class KosherVideoProcessor {
             loadingText.textContent = 'Loading Video Engine...';
         }
         
-        await this.loadFFmpeg();
+        await this.initializeWorker();
         this.hideLoadingScreen();
     }
 
@@ -189,16 +190,21 @@ class KosherVideoProcessor {
         try {
             console.log(`Loading FFmpeg.wasm... (attempt ${this.ffmpegLoadAttempts})`);
             
+            // Check for Cross-Origin Isolation support
+            if (typeof SharedArrayBuffer === 'undefined') {
+                console.warn('SharedArrayBuffer not available, trying fallback mode');
+            }
+            
             // Wait for FFmpeg to be available with longer timeout
             let retries = 0;
-            const maxRetries = 100; // Increased from 50 to 100 (10 seconds)
+            const maxRetries = 150; // Increased to 15 seconds for GitHub Pages
             
             while (typeof FFmpeg === 'undefined' && retries < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, 100));
                 retries++;
                 
                 // Update loading text with progress
-                if (retries % 10 === 0) {
+                if (retries % 15 === 0) {
                     const loadingText = document.querySelector('.loading-text h2');
                     if (loadingText) {
                         loadingText.textContent = `Loading Libraries... ${Math.round((retries / maxRetries) * 100)}%`;
@@ -207,7 +213,7 @@ class KosherVideoProcessor {
             }
             
             if (typeof FFmpeg === 'undefined') {
-                throw new Error('FFmpeg library not loaded after waiting 10 seconds');
+                throw new Error('FFmpeg library not loaded after waiting 15 seconds');
             }
             
             // Update loading text
@@ -247,11 +253,21 @@ class KosherVideoProcessor {
                 loadingText.textContent = 'Loading Core Engine...';
             }
 
-            // Load FFmpeg with core and wasm files from CDN
-            await this.ffmpeg.load({
+            // Load FFmpeg with core and wasm files from CDN with fallback
+            const loadConfig = {
                 coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-                wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
-            });
+                wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
+                // GitHub Pages compatibility options
+                classWorkerURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.worker.js'
+            };
+            
+            // Try loading with timeout for GitHub Pages
+            const loadPromise = this.ffmpeg.load(loadConfig);
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('FFmpeg load timeout after 30 seconds')), 30000)
+            );
+            
+            await Promise.race([loadPromise, timeoutPromise]);
 
             console.log('FFmpeg.wasm loaded successfully!');
             this.ffmpegLoadAttempts = 0; // Reset on success
@@ -286,12 +302,29 @@ class KosherVideoProcessor {
                 errorMessage += '• Slow internet connection\n';
                 errorMessage += '• Browser compatibility issues\n';
                 errorMessage += '• Ad blockers blocking resources\n';
-                errorMessage += '• Local file restrictions (try using a web server)\n\n';
-                errorMessage += 'Please try:\n';
-                errorMessage += '1. Using a local web server (python -m http.server)\n';
-                errorMessage += '2. Refreshing the page\n';
-                errorMessage += '3. Disabling ad blockers\n';
-                errorMessage += '4. Using a different browser (Chrome/Firefox recommended)';
+                
+                // GitHub Pages specific guidance
+                if (window.location.protocol === 'https:' && window.location.hostname.includes('github.io')) {
+                    errorMessage += '• GitHub Pages CORS configuration\n\n';
+                    errorMessage += 'For GitHub Pages, please try:\n';
+                    errorMessage += '1. Refreshing the page\n';
+                    errorMessage += '2. Waiting a moment for CDN resources to load\n';
+                    errorMessage += '3. Using a different browser (Chrome/Firefox recommended)\n';
+                    errorMessage += '4. Disabling ad blockers temporarily';
+                } else if (window.location.protocol === 'file:') {
+                    errorMessage += '• Local file restrictions (try using a web server)\n\n';
+                    errorMessage += 'Please try:\n';
+                    errorMessage += '1. Using a local web server (python -m http.server)\n';
+                    errorMessage += '2. Refreshing the page\n';
+                    errorMessage += '3. Disabling ad blockers\n';
+                    errorMessage += '4. Using a different browser (Chrome/Firefox recommended)';
+                } else {
+                    errorMessage += '\nPlease try:\n';
+                    errorMessage += '1. Refreshing the page\n';
+                    errorMessage += '2. Disabling ad blockers\n';
+                    errorMessage += '3. Using a different browser (Chrome/Firefox recommended)\n';
+                    errorMessage += '4. Checking your internet connection';
+                }
             } else if (error.message.includes('network') || error.message.includes('fetch')) {
                 errorMessage += 'Network connection issue detected.\n\n';
                 errorMessage += 'Please check your internet connection and refresh the page.';

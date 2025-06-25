@@ -27,8 +27,10 @@ This guide will help you deploy the Kosher Video Processor to GitHub Pages in ju
    - `app.js`
    - `sw.js`
    - `manifest.json`
+   - `_headers` ⭐ **IMPORTANT for FFmpeg.wasm**
    - `README.md`
    - `LICENSE`
+   - Create `icons/` folder and upload icon files
 3. Commit message: `Initial deployment of Kosher Video Processor`
 4. Click **"Commit changes"**
 
@@ -36,11 +38,13 @@ This guide will help you deploy the Kosher Video Processor to GitHub Pages in ju
 ```bash
 git clone https://github.com/yourusername/kosher-video-processor.git
 cd kosher-video-processor
-# Copy all project files here
+# Copy all project files here (including _headers file)
 git add .
 git commit -m "Deploy Kosher Video Processor v1.0"
 git push origin main
 ```
+
+⚠️ **CRITICAL**: Make sure to include the `_headers` file - this configures CORS headers needed for FFmpeg.wasm to work on GitHub Pages!
 
 ### Step 3: Enable GitHub Pages
 1. Go to your repository
@@ -72,6 +76,31 @@ git push origin main
    ```
 3. In GitHub Pages settings, enter your custom domain
 4. ✅ Enable "Enforce HTTPS"
+
+## 🔧 GitHub Pages Configuration for FFmpeg.wasm
+
+### CORS Headers Setup
+The app includes a `_headers` file that configures Cross-Origin Resource Sharing (CORS) headers required for FFmpeg.wasm to work properly on GitHub Pages:
+
+```
+/*
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: cross-origin
+```
+
+**Important Notes:**
+- ⚠️ **MUST** include the `_headers` file in your repository
+- GitHub Pages automatically applies these headers to all files
+- Without these headers, FFmpeg.wasm will fail to load
+- The headers enable SharedArrayBuffer support needed for video processing
+
+### Browser Compatibility
+- ✅ Chrome 88+ (recommended)
+- ✅ Firefox 79+ (recommended) 
+- ✅ Safari 15.2+
+- ✅ Edge 88+
+- ❌ Internet Explorer (not supported)
 
 ## 🔧 Configuration Tips
 

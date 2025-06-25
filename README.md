@@ -23,9 +23,18 @@ A magical, fully static client-side web application for video processing that ru
 - **Memory Efficient**: Handles large files (500MB+) gracefully
 - **Cross-Platform**: Works on desktop, tablet, and mobile
 
-## 🚀 Live Demo
+## 🚀 GitHub Pages Deployment
 
-Visit the live application: [GitHub Pages Link] *(Deploy to see this)*
+This app is specifically designed for GitHub Pages hosting. To deploy:
+
+1. **Fork/Clone** this repository
+2. **Enable GitHub Pages** in repository settings
+3. **Include the `_headers` file** (critical for FFmpeg.wasm)
+4. **Deploy** - Your app will be available at `https://yourusername.github.io/repo-name/`
+
+**Important**: The `_headers` file configures CORS headers required for FFmpeg.wasm to work on GitHub Pages. Without it, video processing will fail.
+
+See `DEPLOYMENT.md` for detailed step-by-step instructions.
 
 ## 🛠️ Technology Stack
 
