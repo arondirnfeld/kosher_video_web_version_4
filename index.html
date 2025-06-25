@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kosher Video Processor - Magic Video Tools</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#8b5cf6">
+    <meta name="msapplication-TileColor" content="#8b5cf6">
+    <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+    <meta name="description" content="Transform your videos with client-side magic - Create slideshows or extract audio">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Loading Screen -->
+        <div id="loading-screen" class="loading-screen">
+            <div class="magic-circle">
+                <div class="circle-outer"></div>
+                <div class="circle-middle"></div>
+                <div class="circle-inner"></div>
+                <div class="loading-text">
+                    <h2>Initializing Magic...</h2>
+                    <div class="loading-progress">
+                        <div class="progress-bar" id="loading-progress"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Application -->
+        <div id="main-app" class="main-app hidden">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="header-content">
+                    <h1 class="app-title">
+                        <i class="fas fa-magic"></i>
+                        Kosher Video Processor
+                    </h1>
+                    <p class="app-subtitle">Transform your videos with client-side magic</p>
+                </div>
+                <div class="header-bg"></div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="app-main">
+                <!-- Upload Section -->
+                <section id="upload-section" class="section upload-section">
+                    <div class="section-content">
+                        <h2 class="section-title">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            Upload Your Video
+                        </h2>
+                        
+                        <div class="upload-area" id="upload-area">
+                            <div class="upload-content">
+                                <div class="upload-icon">
+                                    <i class="fas fa-video"></i>
+                                </div>
+                                <h3>Drop your video here</h3>
+                                <p>or click to browse</p>
+                                <div class="supported-formats">
+                                    <span>Supports: MP4, AVI, MOV, MKV, WebM</span>
+                                </div>
+                            </div>
+                            <input type="file" id="file-input" accept="video/*" hidden>
+                        </div>
+
+                        <div id="file-info" class="file-info hidden">
+                            <div class="file-details">
+                                <div class="file-icon">
+                                    <i class="fas fa-file-video"></i>
+                                </div>
+                                <div class="file-meta">
+                                    <h4 id="file-name">filename.mp4</h4>
+                                    <p id="file-size">0 MB</p>
+                                    <div class="file-progress">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" id="upload-progress"></div>
+                                        </div>
+                                        <span class="progress-text" id="progress-text">0%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Processing Options -->
+                <section id="options-section" class="section options-section hidden">
+                    <div class="section-content">
+                        <h2 class="section-title">
+                            <i class="fas fa-cogs"></i>
+                            Choose Your Magic
+                        </h2>
+                        
+                        <div class="options-grid">
+                            <!-- Slideshow Option -->
+                            <div class="option-card" id="slideshow-option">
+                                <div class="card-header">
+                                    <div class="card-icon slideshow-icon">
+                                        <i class="fas fa-images"></i>
+                                    </div>
+                                    <h3>Create Slideshow</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p>Convert video to slideshow with original audio</p>
+                                    <div class="option-controls">
+                                        <label for="interval-slider">Frame Interval (seconds):</label>
+                                        <div class="slider-container">
+                                            <input type="range" id="interval-slider" min="0.5" max="10" value="2" step="0.5">
+                                            <span id="interval-value">2s</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-action">
+                                    <button class="btn btn-primary" id="start-slideshow">
+                                        <i class="fas fa-play"></i>
+                                        Create Slideshow
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Audio Extraction Option -->
+                            <div class="option-card" id="audio-option">
+                                <div class="card-header">
+                                    <div class="card-icon audio-icon">
+                                        <i class="fas fa-music"></i>
+                                    </div>
+                                    <h3>Extract Audio</h3>
+                                </div>
+                                <div class="card-body">
+                                    <p>Extract pure audio from your video</p>
+                                    <div class="option-controls">
+                                        <label for="audio-format">Output Format:</label>
+                                        <select id="audio-format" class="format-select">
+                                            <option value="mp3">MP3 (Compressed)</option>
+                                            <option value="wav">WAV (Lossless)</option>
+                                            <option value="ogg">OGG (Open Source)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="card-action">
+                                    <button class="btn btn-secondary" id="start-audio-extract">
+                                        <i class="fas fa-download"></i>
+                                        Extract Audio
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Processing Status -->
+                <section id="processing-section" class="section processing-section hidden">
+                    <div class="section-content">
+                        <h2 class="section-title">
+                            <i class="fas fa-magic"></i>
+                            Processing Magic in Progress
+                        </h2>
+                        
+                        <div class="processing-container">
+                            <div class="magic-orb">
+                                <div class="orb-core"></div>
+                                <div class="orb-ring"></div>
+                                <div class="orb-particles"></div>
+                            </div>
+                            
+                            <div class="processing-info">
+                                <h3 id="processing-stage">Initializing...</h3>
+                                <p id="processing-details">Preparing your file for transformation</p>
+                                
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="processing-progress"></div>
+                                    </div>
+                                    <span class="progress-text" id="processing-percent">0%</span>
+                                </div>
+                                
+                                <div class="processing-stats">
+                                    <div class="stat">
+                                        <span class="stat-label">Elapsed:</span>
+                                        <span class="stat-value" id="elapsed-time">00:00</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-label">Status:</span>
+                                        <span class="stat-value" id="processing-status">Starting</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Results Section -->
+                <section id="results-section" class="section results-section hidden">
+                    <div class="section-content">
+                        <h2 class="section-title">
+                            <i class="fas fa-star"></i>
+                            Magic Complete!
+                        </h2>
+                        
+                        <div class="results-container">
+                            <div class="result-preview">
+                                <div class="preview-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <h3 id="result-title">Your file is ready!</h3>
+                                <p id="result-description">Processing completed successfully</p>
+                            </div>
+                            
+                            <div class="result-actions">
+                                <button class="btn btn-success" id="download-result">
+                                    <i class="fas fa-download"></i>
+                                    Download Result
+                                </button>
+                                <button class="btn btn-outline" id="process-another">
+                                    <i class="fas fa-redo"></i>
+                                    Process Another File
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+
+            <!-- Footer -->
+            <footer class="app-footer">
+                <div class="footer-content">
+                    <p>&copy; 2025 Kosher Video Processor - All processing happens in your browser</p>
+                    <div class="footer-links">
+                        <a href="#" class="footer-link">Privacy</a>
+                        <a href="#" class="footer-link">Terms</a>
+                        <a href="#" class="footer-link">Support</a>
+                    </div>
+                </div>
+            </footer>
+        </div>
+
+        <!-- Error Modal -->
+        <div id="error-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-exclamation-triangle"></i> Error</h3>
+                    <button class="close-btn" id="close-error">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="error-message">An error occurred during processing.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline" id="error-ok">OK</button>
+                </div>
+            </div>
+            <div class="modal-overlay"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

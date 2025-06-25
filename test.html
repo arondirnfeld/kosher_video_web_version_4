@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kosher Video Processor - Test Runner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h1 {
+            color: #8b5cf6;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            border-left: 4px solid #8b5cf6;
+        }
+        .test-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 5px;
+        }
+        .test-status {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-pass {
+            background: #10b981;
+            color: white;
+        }
+        .status-fail {
+            background: #ef4444;
+            color: white;
+        }
+        .status-warn {
+            background: #f59e0b;
+            color: white;
+        }
+        .run-tests {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            margin: 30px auto;
+            transition: transform 0.2s;
+        }
+        .run-tests:hover {
+            transform: translateY(-2px);
+        }
+        .launch-app {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        .launch-app:hover {
+            transform: translateY(-2px);
+        }
+        .actions {
+            text-align: center;
+            margin-top: 30px;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            display: none;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Kosher Video Processor Test Runner</h1>
+        
+        <div class="test-section">
+            <h3>📋 Pre-Flight Checklist</h3>
+            <div id="tests">
+                <div class="test-item">
+                    <span>Browser API Support</span>
+                    <span class="test-status" id="api-support">CHECKING...</span>
+                </div>
+                <div class="test-item">
+                    <span>WebAssembly Support</span>
+                    <span class="test-status" id="wasm-support">CHECKING...</span>
+                </div>
+                <div class="test-item">
+                    <span>File API Support</span>
+                    <span class="test-status" id="file-api">CHECKING...</span>
+                </div>
+                <div class="test-item">
+                    <span>Service Worker Support</span>
+                    <span class="test-status" id="sw-support">CHECKING...</span>
+                </div>
+                <div class="test-item">
+                    <span>FFmpeg.wasm CDN Access</span>
+                    <span class="test-status" id="ffmpeg-cdn">CHECKING...</span>
+                </div>
+                <div class="test-item">
+                    <span>Animation Library (Anime.js)</span>
+                    <span class="test-status" id="anime-lib">CHECKING...</span>
+                </div>
+                <div class="test-item">
+                    <span>Font Awesome Icons</span>
+                    <span class="test-status" id="font-awesome">CHECKING...</span>
+                </div>
+                <div class="test-item">
+                    <span>Required Files Present</span>
+                    <span class="test-status" id="files-present">CHECKING...</span>
+                </div>
+            </div>
+        </div>
+
+        <button class="run-tests" onclick="runTests()">🚀 Run All Tests</button>
+
+        <div class="results" id="results">
+            <h3>📊 Test Results</h3>
+            <div id="results-content"></div>
+        </div>
+
+        <div class="actions">
+            <a href="index.html" class="launch-app">🎬 Launch Application</a>
+            <a href="https://github.com/pages" class="launch-app" target="_blank" rel="noopener">📖 GitHub Pages Guide</a>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Deployment Checklist</h3>
+            <div class="code">
+✅ Upload all files to GitHub repository<br>
+✅ Enable GitHub Pages in repository settings<br>
+✅ Set source to "main" branch and "/ (root)" folder<br>
+✅ Wait 5-10 minutes for initial deployment<br>
+✅ Test the live URL: https://yourusername.github.io/repository-name/<br>
+✅ Verify video upload and processing works<br>
+✅ Test on mobile devices<br>
+✅ Share with users! 🎉
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = {
+            passed: 0,
+            failed: 0,
+            warnings: 0
+        };
+
+        function updateStatus(id, status, message = '') {
+            const element = document.getElementById(id);
+            element.className = `test-status status-${status}`;
+            element.textContent = status.toUpperCase() + (message ? ` - ${message}` : '');
+            
+            if (status === 'pass') testResults.passed++;
+            else if (status === 'fail') testResults.failed++;
+            else if (status === 'warn') testResults.warnings++;
+        }
+
+        async function testAPI() {
+            const apis = ['File', 'FileReader', 'FileList', 'Blob', 'URL'];
+            const missing = apis.filter(api => typeof window[api] !== 'function' && typeof window[api] !== 'object');
+            
+            if (missing.length === 0) {
+                updateStatus('api-support', 'pass');
+            } else {
+                updateStatus('api-support', 'fail', `Missing: ${missing.join(', ')}`);
+            }
+        }
+
+        async function testWebAssembly() {
+            if (typeof WebAssembly === 'object') {
+                updateStatus('wasm-support', 'pass');
+            } else {
+                updateStatus('wasm-support', 'fail', 'WebAssembly not supported');
+            }
+        }
+
+        async function testFileAPI() {
+            if (window.File && window.FileReader && window.FileList && window.Blob) {
+                updateStatus('file-api', 'pass');
+            } else {
+                updateStatus('file-api', 'fail', 'File API not fully supported');
+            }
+        }
+
+        async function testServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                updateStatus('sw-support', 'pass');
+            } else {
+                updateStatus('sw-support', 'warn', 'No SW support - PWA features disabled');
+            }
+        }
+
+        async function testFFmpegCDN() {
+            try {
+                const response = await fetch('https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js', { method: 'HEAD' });
+                if (response.ok) {
+                    updateStatus('ffmpeg-cdn', 'pass');
+                } else {
+                    updateStatus('ffmpeg-cdn', 'fail', `HTTP ${response.status}`);
+                }
+            } catch (error) {
+                updateStatus('ffmpeg-cdn', 'fail', 'Network error');
+            }
+        }
+
+        async function testAnimeJS() {
+            try {
+                const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js', { method: 'HEAD' });
+                if (response.ok) {
+                    updateStatus('anime-lib', 'pass');
+                } else {
+                    updateStatus('anime-lib', 'warn', 'May affect animations');
+                }
+            } catch (error) {
+                updateStatus('anime-lib', 'warn', 'Network error - animations may not work');
+            }
+        }
+
+        async function testFontAwesome() {
+            try {
+                const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', { method: 'HEAD' });
+                if (response.ok) {
+                    updateStatus('font-awesome', 'pass');
+                } else {
+                    updateStatus('font-awesome', 'warn', 'Icons may not display');
+                }
+            } catch (error) {
+                updateStatus('font-awesome', 'warn', 'Network error - icons may not display');
+            }
+        }
+
+        async function testRequiredFiles() {
+            const requiredFiles = ['index.html', 'styles.css', 'app.js', 'manifest.json'];
+            const missing = [];
+
+            for (const file of requiredFiles) {
+                try {
+                    const response = await fetch(file, { method: 'HEAD' });
+                    if (!response.ok) {
+                        missing.push(file);
+                    }
+                } catch (error) {
+                    missing.push(file);
+                }
+            }
+
+            if (missing.length === 0) {
+                updateStatus('files-present', 'pass');
+            } else {
+                updateStatus('files-present', 'fail', `Missing: ${missing.join(', ')}`);
+            }
+        }
+
+        async function runTests() {
+            // Reset results
+            testResults = { passed: 0, failed: 0, warnings: 0 };
+            
+            // Update all to checking
+            const statusElements = document.querySelectorAll('.test-status');
+            statusElements.forEach(el => {
+                el.className = 'test-status';
+                el.textContent = 'CHECKING...';
+            });
+
+            // Run tests
+            await Promise.all([
+                testAPI(),
+                testWebAssembly(),
+                testFileAPI(),
+                testServiceWorker(),
+                testFFmpegCDN(),
+                testAnimeJS(),
+                testFontAwesome(),
+                testRequiredFiles()
+            ]);
+
+            // Show results
+            showResults();
+        }
+
+        function showResults() {
+            const resultsDiv = document.getElementById('results');
+            const contentDiv = document.getElementById('results-content');
+            
+            const total = testResults.passed + testResults.failed + testResults.warnings;
+            const successRate = Math.round((testResults.passed / total) * 100);
+            
+            let status = 'Ready to Deploy! 🚀';
+            let statusClass = 'status-pass';
+            
+            if (testResults.failed > 0) {
+                status = 'Issues Found - Fix Before Deploying ⚠️';
+                statusClass = 'status-fail';
+            } else if (testResults.warnings > 0) {
+                status = 'Minor Issues - Should Work ⚡';
+                statusClass = 'status-warn';
+            }
+            
+            contentDiv.innerHTML = `
+                <div class="test-item">
+                    <span><strong>Overall Status</strong></span>
+                    <span class="test-status ${statusClass}">${status}</span>
+                </div>
+                <div class="test-item">
+                    <span>Success Rate</span>
+                    <span class="test-status">${successRate}%</span>
+                </div>
+                <div class="test-item">
+                    <span>Tests Passed</span>
+                    <span class="test-status status-pass">${testResults.passed}</span>
+                </div>
+                <div class="test-item">
+                    <span>Warnings</span>
+                    <span class="test-status status-warn">${testResults.warnings}</span>
+                </div>
+                <div class="test-item">
+                    <span>Failures</span>
+                    <span class="test-status status-fail">${testResults.failed}</span>
+                </div>
+                <div class="code">
+                    <strong>Next Steps:</strong><br>
+                    ${testResults.failed === 0 
+                        ? '✅ All critical tests passed! Ready to deploy to GitHub Pages.' 
+                        : '❌ Fix failed tests before deploying. Check browser compatibility.'}
+                    <br><br>
+                    <strong>Deployment Command:</strong><br>
+                    git add . && git commit -m "Deploy Kosher Video Processor" && git push origin main
+                </div>
+            `;
+            
+            resultsDiv.style.display = 'block';
+        }
+
+        // Auto-run tests on page load
+        window.addEventListener('load', () => {
+            setTimeout(runTests, 1000);
+        });
+    </script>
+</body>
+</html>
