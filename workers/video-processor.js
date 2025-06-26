@@ -177,46 +177,84 @@ async function createSlideshow(payload) {
     }
 }
 
-async function extractAudio(options) {
-    const { inputFilename, format, outputFilename } = options;
+async function extractAudio(payload) {
+    const { file, args } = payload;
+    const { format, outputFilename } = args;
+    const inputFilename = 'input.mp4';
     
-    self.postMessage({ 
-        type: 'STATUS_UPDATE', 
-        stage: 'Extracting audio...',
-        details: `Converting to ${format.toUpperCase()} format`
-    });
+    try {
+        // Convert File to ArrayBuffer and then to Uint8Array
+        const fileData = await file.arrayBuffer();
+        const fileUint8 = new Uint8Array(fileData);
 
-    // Audio extraction command based on format
-    let codecArgs = [];
-    switch (format) {
-        case 'mp3':
-            codecArgs = ['-c:a', 'libmp3lame', '-b:a', '192k'];
-            break;
-        case 'wav':
-            codecArgs = ['-c:a', 'pcm_s16le'];
-            break;
-        case 'ogg':
-            codecArgs = ['-c:a', 'libvorbis', '-q:a', '5'];
-            break;
-        default:
-            throw new Error(`Unsupported audio format: ${format}`);
+        // Write the file to FFmpeg's virtual filesystem
+        await ffmpeg.writeFile(inputFilename, fileUint8);
+        
+        // Notify progress
+        self.postMessage({ 
+            type: 'processing-progress', 
+            payload: {
+                progress: 0.2,
+                message: `Extracting audio in ${format.toUpperCase()} format...`
+            }
+        });
+
+        // Audio extraction command based on format
+        let codecArgs = [];
+        switch (format) {
+            case 'mp3':
+                codecArgs = ['-c:a', 'libmp3lame', '-b:a', '192k'];
+                break;
+            case 'wav':
+                codecArgs = ['-c:a', 'pcm_s16le'];
+                break;
+            case 'ogg':
+                codecArgs = ['-c:a', 'libvorbis', '-q:a', '5'];
+                break;
+            default:
+                throw new Error(`Unsupported audio format: ${format}`);
+        }
+
+        await ffmpeg.exec([
+            '-i', inputFilename,
+            ...codecArgs,
+            '-y',
+            outputFilename
+        ]);
+
+        // Notify progress
+        self.postMessage({ 
+            type: 'processing-progress', 
+            payload: {
+                progress: 0.9,
+                message: 'Finalizing audio extraction...'
+            }
+        });
+        
+        // Read the output file
+        const outputData = await ffmpeg.readFile(outputFilename);
+        
+        // Send the complete response
+        self.postMessage({ 
+            type: 'processing-complete', 
+            payload: {
+                data: outputData.buffer,
+                fileName: outputFilename
+            }
+        });
+        
+        // Clean up
+        await ffmpeg.deleteFile(inputFilename);
+        await ffmpeg.deleteFile(outputFilename);
+        
+    } catch (error) {
+        self.postMessage({
+            type: 'processing-error',
+            payload: {
+                error: `Error extracting audio: ${error.message}`
+            }
+        });
     }
-
-    await ffmpeg.exec([
-        '-i', inputFilename,
-        ...codecArgs,
-        '-y',
-        outputFilename
-    ]);
-
-    // Read the output file
-    const outputData = await ffmpeg.readFile(outputFilename);
-    
-    self.postMessage({ 
-        type: 'AUDIO_COMPLETE', 
-        outputData: outputData.buffer,
-        filename: outputFilename
-    });
 }
 
 // Error handling for unhandled promise rejections
