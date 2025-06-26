@@ -52,14 +52,6 @@
                 <div class="header-bg"></div>
             </header>
 
-            <!-- Debug Header -->
-            <header>
-                <div class="container">
-                    <h1 class="title">Kosher Video</h1>
-                    <button id="show-debug" class="btn btn-icon" title="Show Debug Panel"><i class="fas fa-bug"></i></button>
-                </div>
-            </header>
-
             <!-- Main Content -->
             <main class="app-main">
                 <!-- Upload Section -->
@@ -418,7 +410,7 @@
         } catch (e) {
             KosherLogger.error('System', 'SharedArrayBuffer not supported', e);
             
-            // Create a more informative alert for Edge users
+            // Create a more detailed error message based on browser and situation
             if (browserName === 'Microsoft Edge') {
                 const message = `⚠️ Microsoft Edge Configuration Required ⚠️\n\n` +
                       `To use this application in Microsoft Edge, you need to enable SharedArrayBuffer:\n\n` +
@@ -432,7 +424,9 @@
                       `1. Type "edge://settings/privacy" in your address bar\n` +
                       `2. Turn OFF "Enhance your security on the web"\n` +
                       `3. Restart Edge and return to this page\n\n` +
-                      `These settings are required because Edge has strict security that blocks features needed for video processing.`;
+                      `Method 3 (Best for local development):\n` +
+                      `1. Run the "run-with-headers.bat" file in the project folder\n` +
+                      `2. Open http://localhost:8080 in Edge`;
                 
                 // Log this issue with more detail
                 KosherLogger.error('System', 'Edge SharedArrayBuffer configuration required', {
@@ -442,17 +436,40 @@
                 });
                 
                 alert(message);
+            } else if (browserName === 'Chrome' || browserName === 'Firefox') {
+                // For Chrome and Firefox, it's likely a local file access issue
+                const message = `⚠️ SharedArrayBuffer Configuration Required ⚠️\n\n` +
+                      `Your browser needs special headers to enable SharedArrayBuffer when viewing local files.\n\n` +
+                      `To fix this issue:\n\n` +
+                      `Method 1 (Easiest - Use the included server):\n` +
+                      `1. Run the "run-with-headers.bat" file in the project folder\n` +
+                      `2. Open http://localhost:8080 in your browser\n\n` +
+                      `Method 2 (Chrome only - Change flags):\n` +
+                      `1. Type "chrome://flags" in your address bar\n` +
+                      `2. Search for "SharedArrayBuffer"\n` +
+                      `3. Enable "SharedArrayBuffer without header requirement"\n` +
+                      `4. Restart Chrome\n\n` +
+                      `Note: SharedArrayBuffer requires proper security headers when running locally.`;
                 
-                // Show debug panel automatically for Edge users to help troubleshooting
-                setTimeout(() => {
-                    const debugPanel = document.getElementById('debug-panel');
-                    if (debugPanel) {
-                        debugPanel.classList.remove('hidden');
-                    }
-                }, 1000);
+                KosherLogger.error('System', 'SharedArrayBuffer not available with current setup', {
+                    browser: browserName,
+                    userAgent: navigator.userAgent,
+                    locationProtocol: window.location.protocol
+                });
+                
+                alert(message);
             } else {
-                alert('Your browser does not support SharedArrayBuffer. This is required for video processing. Please use Chrome or Firefox with proper COOP/COEP headers.');
+                // For other browsers or unknown situations
+                alert('Your browser does not support SharedArrayBuffer. This is required for video processing. Please run the local server using "run-with-headers.bat" and access via http://localhost:8080, or use Chrome/Firefox with proper COOP/COEP headers.');
             }
+            
+            // Show debug panel automatically for troubleshooting
+            setTimeout(() => {
+                const debugPanel = document.getElementById('debug-panel');
+                if (debugPanel) {
+                    debugPanel.classList.remove('hidden');
+                }
+            }, 1000);
         }
     </script>
     

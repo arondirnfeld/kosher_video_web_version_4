@@ -1,32 +1,54 @@
 # 🏠 Local Development Setup
 
-Since you're running into issues with the `file://` protocol, here are the best ways to run the application locally:
+The Kosher Video Processor requires special CORS headers for SharedArrayBuffer support. Here's how to set up the application locally:
 
-## 🚀 Quick Solutions
+## ⚠️ Important: Running with Required Headers
 
-### Option 1: Python HTTP Server (Recommended)
+FFmpeg.wasm requires these headers to work properly:
+- `Cross-Origin-Embedder-Policy: require-corp`
+- `Cross-Origin-Opener-Policy: same-origin`
+
+Regular file URLs (`file://`) and basic web servers won't set these headers. You need to use special methods for local development.
+
+## 🚀 Recommended Solutions
+
+### Option 1: Use the Built-in Server Script (Easiest)
+
+We've included convenient scripts to run a server with the required headers:
+
+**Windows:**
 ```bash
 # Navigate to your project folder
-cd "C:\Users\abamo\OneDrive\Documents\Coding Projects\KosherVideoWeb\kosher_video_web_version_4"
+cd path\to\kosher_video_web_version_4
 
-# Start a local server (Python 3)
-python -m http.server 8000
-
-# Or if you have Python 2
-python -m SimpleHTTPServer 8000
+# Run the included batch file
+run-with-headers.bat
 ```
-Then open: http://localhost:8000
 
-### Option 2: Node.js HTTP Server
+**Mac/Linux:**
 ```bash
-# Install a simple server globally
-npm install -g http-server
-
 # Navigate to your project folder
-cd "C:\Users\abamo\OneDrive\Documents\Coding Projects\KosherVideoWeb\kosher_video_web_version_4"
+cd path/to/kosher_video_web_version_4
 
-# Start server
-http-server
+# Make the script executable (first time only)
+chmod +x run-with-headers.sh
+
+# Run the included shell script
+./run-with-headers.sh
+```
+
+Then open: http://localhost:8080
+
+### Option 2: Node.js with Custom Headers
+```bash
+# Navigate to your project folder
+cd path\to\kosher_video_web_version_4
+
+# Run the included Node.js server (with headers)
+node serve-with-headers.js
+```
+
+Then open: http://localhost:8080
 
 # Or with specific port
 http-server -p 8000

@@ -1,14 +1,22 @@
 # 🚀 GitHub Pages Deployment Guide
 
-This guide will help you deploy the Kosher Video Processor to GitHub Pages in just a few minutes!
+This guide will help you deploy the Kosher Video Processor to GitHub Pages. This application is specifically designed to work as a static site with no server-side dependencies!
 
 ## 📋 Prerequisites
 
 - GitHub account
 - Web browser
-- The project files (already created!)
+- The project files (already downloaded and configured)
 
-## 🎯 Quick Deployment (5 minutes)
+## ⚠️ Important: FFmpeg.wasm Requirements
+
+For the application to run properly on GitHub Pages, we need to ensure the following:
+
+1. Proper CORS headers are set up (via `_headers` file)
+2. All FFmpeg core files are included in the `/static` directory
+3. SharedArrayBuffer is properly configured
+
+## 🎯 Quick Deployment
 
 ### Step 1: Create Repository
 1. Go to [GitHub.com](https://github.com)
@@ -21,13 +29,16 @@ This guide will help you deploy the Kosher Video Processor to GitHub Pages in ju
 ### Step 2: Upload Files
 **Option A: Web Interface (Easiest)**
 1. Click **"uploading an existing file"**
-2. Drag and drop ALL project files:
+2. Drag and drop ALL project files and folders:
    - `index.html`
    - `styles.css`
    - `app.js`
    - `sw.js`
    - `manifest.json`
-   - `_headers` ⭐ **IMPORTANT for FFmpeg.wasm**
+   - `_headers` ⭐ **CRITICAL for FFmpeg.wasm**
+   - `/static` folder (with all FFmpeg files)
+   - `/workers` folder
+   - `/icons` folder
    - `README.md`
    - `LICENSE`
    - Create `icons/` folder and upload icon files

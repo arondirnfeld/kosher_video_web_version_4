@@ -428,6 +428,13 @@ class KosherVideoProcessor {
                         setTimeout(() => this.hideLoadingScreen(), 500);
                         break;
                         
+                    case 'loading-progress':
+                        KosherLogger.log('Worker', 'FFmpeg loading progress', { percent: payload.percent });
+                        if (this.elements.loadingProgress) {
+                            this.elements.loadingProgress.style.width = `${payload.percent}%`;
+                        }
+                        break;
+                        
                     case 'processing-progress':
                         KosherLogger.log('Worker', 'Processing progress update', { progress: payload.progress });
                         this.updateProcessingProgress(payload.progress * 100);

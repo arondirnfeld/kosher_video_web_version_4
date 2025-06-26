@@ -26,6 +26,16 @@ curl -L "https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js" -o "static/
 # FFmpeg Util Library  
 curl -L "https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js" -o "static/ffmpeg-util.js"
 
+echo "✅ FFmpeg.wasm assets downloaded successfully!"
+echo
+echo "🚀 Setup complete! Your app is now ready for GitHub Pages deployment."
+echo
+echo "Next steps:"
+echo "1. Commit and push your changes to GitHub"
+echo "2. Enable GitHub Pages in your repository settings"
+echo "3. Your app will be available at: https://username.github.io/repository-name"
+curl -L "https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js" -o "static/ffmpeg-util.js"
+
 # Anime.js for animations
 curl -L "https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js" -o "static/anime.min.js"
 

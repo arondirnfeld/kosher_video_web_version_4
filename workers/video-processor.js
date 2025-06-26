@@ -225,19 +225,33 @@ async function initializeFFmpeg() {
         
         // Log before attempting to load
         WorkerLogger.log('FFmpeg', 'Starting FFmpeg load process');
-
-        await ffmpeg.load({
-            coreURL: corePaths.coreURL,
-            wasmURL: corePaths.wasmURL,
-            workerURL: corePaths.workerURL,
-            // Add progress logging for the load operation
-            progress: ({ ratio }) => {
-                WorkerLogger.log('FFmpeg', `Loading progress: ${Math.round(ratio * 100)}%`);
-            }
-        });
-
-        WorkerLogger.log('FFmpeg', 'FFmpeg core loaded successfully');
-        isLoaded = true;
+        
+        try {
+            // Use relative URLs to make it work on GitHub Pages
+            const baseURL = '../static/';
+            
+            await ffmpeg.load({
+                // For GitHub Pages deployment, we use relative URLs
+                coreURL: `${baseURL}ffmpeg-core.js`,
+                wasmURL: `${baseURL}ffmpeg-core.wasm`,
+                workerURL: `${baseURL}ffmpeg-core.worker.js`,
+                // Add progress logging for the load operation
+                progress: ({ ratio }) => {
+                    const percent = Math.round(ratio * 100);
+                    WorkerLogger.log('FFmpeg', `Loading progress: ${percent}%`);
+                    self.postMessage({ 
+                        type: 'loading-progress', 
+                        payload: { percent } 
+                    });
+                }
+            });
+            
+            WorkerLogger.log('FFmpeg', 'FFmpeg core loaded successfully');
+            isLoaded = true;
+        } catch (error) {
+            WorkerLogger.error('FFmpeg', `FFmpeg load failed with specific error: ${error.message}`, error);
+            throw error;
+        }
         
     } catch (error) {
         WorkerLogger.error('FFmpeg', 'Error loading FFmpeg', error);

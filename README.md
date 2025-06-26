@@ -23,6 +23,32 @@ A magical, fully static client-side web application for video processing that ru
 - **Memory Efficient**: Handles large files (500MB+) gracefully
 - **Cross-Platform**: Works on desktop, tablet, and mobile
 
+## 🚀 Running the Application Locally
+
+### 🔧 Using the Built-in Server (Recommended)
+
+For security reasons, modern browsers require special headers to enable SharedArrayBuffer, which is required by FFmpeg.wasm:
+
+1. **Run the included server script**:
+   - On Windows: Double-click `run-with-headers.bat`
+   - On Linux/Mac: Run `bash serve.sh`
+2. **Open** [http://localhost:8080](http://localhost:8080) in your browser
+3. The application will run with all required security headers
+
+### 🔧 Browser-Specific Settings (Alternative)
+
+#### Microsoft Edge
+1. Type `edge://flags` in your address bar
+2. Search for "SharedArrayBuffer"
+3. Enable "SharedArrayBuffer support without header requirement"
+4. Restart Edge
+
+#### Chrome
+1. Type `chrome://flags` in your address bar
+2. Search for "SharedArrayBuffer"
+3. Enable "SharedArrayBuffer without header requirement"
+4. Restart Chrome
+
 ## 🚀 GitHub Pages Deployment
 
 This app is specifically designed for GitHub Pages hosting. To deploy:
@@ -44,6 +70,29 @@ See `DEPLOYMENT.md` for detailed step-by-step instructions.
 - **Icons**: [Font Awesome](https://fontawesome.com/) v6.0.0
 - **Fonts**: [Orbitron](https://fonts.google.com/specimen/Orbitron) from Google Fonts
 - **PWA**: Service Worker + Web App Manifest
+
+## 🔍 Troubleshooting
+
+### SharedArrayBuffer Issues
+
+If you see an error about SharedArrayBuffer not being supported:
+
+1. **Use the built-in server**: Run `run-with-headers.bat` (Windows) or `serve.sh` (Linux/Mac)
+2. **Configure your browser**: Follow the browser-specific instructions above
+3. **Check the debug panel**: Click the bug icon in the top-right corner for detailed logs
+
+### Debug Panel
+
+The application includes a debug panel that shows detailed logs:
+- Click the bug icon in the top-right corner to toggle the debug panel
+- Export logs using the download button in the debug panel
+- Clear logs using the trash button
+
+### Common Issues
+
+1. **Processing Fails**: Try using a smaller video file or closing other browser tabs
+2. **Slow Processing**: FFmpeg.wasm runs in the browser and is slower than native FFmpeg
+3. **Browser Crashes**: Large video files may exceed browser memory limits
 
 ## 🎨 Design Philosophy
 
@@ -202,17 +251,6 @@ your-domain.com
 - Normal for large files or slow devices
 - Processing happens client-side (CPU intensive)
 - Consider using a more powerful device
-
-### Browser Console
-
-Enable browser console (F12) to see detailed processing logs:
-```javascript
-// Check FFmpeg status
-console.log(window.videoProcessor.ffmpeg);
-
-// Monitor memory usage
-console.log(performance.memory); // Chrome only
-```
 
 ## 🔐 Privacy & Security
 
