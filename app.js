@@ -342,6 +342,12 @@ class KosherVideoProcessor {
             duration: 600,
             easing: 'easeOutCubic'
         });
+
+        // Start the timer for tracking elapsed processing time
+        this.startProcessingTimer();
+        
+        // Scroll to processing section
+        this.elements.processingSection.scrollIntoView({ behavior: 'smooth' });
     }
 
     updateProcessingProgress(percent) {
@@ -358,7 +364,14 @@ class KosherVideoProcessor {
         }
     }
 
-    updateTimer() {
+    // Start the timer for tracking elapsed processing time
+    startProcessingTimer() {
+        this.startTime = Date.now();
+        this.updateElapsedTime();
+    }
+    
+    // Update the elapsed time display
+    updateElapsedTime() {
         if (!this.isProcessing || !this.startTime) return;
         
         const elapsed = Date.now() - this.startTime;
@@ -396,6 +409,9 @@ class KosherVideoProcessor {
             duration: 800,
             easing: 'easeOutCubic'
         });
+        
+        // Scroll to results section
+        this.elements.resultsSection.scrollIntoView({ behavior: 'smooth' });
 
         // Animate success icon
         anime({
@@ -438,18 +454,30 @@ class KosherVideoProcessor {
     }
 
     downloadProcessedFile() {
-        if (!this.processedFile) {
+        if (!this.processedFileData) {
             this.showError('No processed file available for download.');
             return;
         }
 
         try {
-            const blob = new Blob([this.processedFile.data], { type: this.processedFile.type });
+            // Determine MIME type based on file extension
+            let mimeType = 'application/octet-stream';
+            if (this.processedFileName.endsWith('.mp4')) {
+                mimeType = 'video/mp4';
+            } else if (this.processedFileName.endsWith('.mp3')) {
+                mimeType = 'audio/mpeg';
+            } else if (this.processedFileName.endsWith('.wav')) {
+                mimeType = 'audio/wav';
+            } else if (this.processedFileName.endsWith('.ogg')) {
+                mimeType = 'audio/ogg';
+            }
+
+            const blob = new Blob([this.processedFileData], { type: mimeType });
             const url = URL.createObjectURL(blob);
             
             const a = document.createElement('a');
             a.href = url;
-            a.download = this.processedFile.filename;
+            a.download = this.processedFileName;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -457,7 +485,7 @@ class KosherVideoProcessor {
             // Clean up the URL
             setTimeout(() => URL.revokeObjectURL(url), 1000);
             
-            console.log('File download initiated:', this.processedFile.filename);
+            console.log('File download initiated:', this.processedFileName);
         } catch (error) {
             console.error('Download failed:', error);
             this.showError('Failed to download file. Please try again.');
@@ -540,6 +568,22 @@ class KosherVideoProcessor {
 
     hideErrorModal() {
         this.elements.errorModal.classList.add('hidden');
+    }
+
+    // ===== LOADING SCREEN =====
+    hideLoadingScreen() {
+        this.elements.loadingScreen.classList.add('hidden');
+        this.elements.mainApp.classList.remove('hidden');
+        
+        // Fade in main app with animation
+        anime({
+            targets: this.elements.mainApp,
+            opacity: [0, 1],
+            duration: 1000,
+            easing: 'easeInOutQuad'
+        });
+        
+        console.log('Loading screen hidden, main app displayed');
     }
 }
 
