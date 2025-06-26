@@ -9,26 +9,23 @@ self.importScripts('../static/ffmpeg.js');
 self.importScripts('../static/ffmpeg-util.js');
 
 self.onmessage = async function(e) {
-    const { type, data } = e.data;
+    const { type, payload } = e.data;
 
     try {
         switch (type) {
-            case 'INIT':
+            case 'load-ffmpeg':
                 await initializeFFmpeg();
-                self.postMessage({ type: 'INIT_SUCCESS' });
+                self.postMessage({ type: 'ffmpeg-loaded' });
                 break;
 
-            case 'LOAD_FILE':
-                await loadFile(data.filename, data.fileData);
-                self.postMessage({ type: 'FILE_LOADED' });
-                break;
-
-            case 'CREATE_SLIDESHOW':
-                await createSlideshow(data);
-                break;
-
-            case 'EXTRACT_AUDIO':
-                await extractAudio(data);
+            case 'run-command':
+                if (payload.command === 'slideshow') {
+                    await createSlideshow(payload);
+                } else if (payload.command === 'extract-audio') {
+                    await extractAudio(payload);
+                } else {
+                    throw new Error(`Unknown command: ${payload.command}`);
+                }
                 break;
 
             default:
@@ -89,61 +86,94 @@ async function loadFile(filename, fileData) {
     await ffmpeg.writeFile(filename, new Uint8Array(fileData));
 }
 
-async function createSlideshow(options) {
-    const { inputFilename, interval, outputFilename } = options;
+async function createSlideshow(payload) {
+    const { file, args } = payload;
+    const { interval, outputFilename } = args;
+    const inputFilename = 'input.mp4';
     
-    self.postMessage({ 
-        type: 'STATUS_UPDATE', 
-        stage: 'Extracting frames...',
-        details: 'Creating slideshow frames from video'
-    });
-
-    // Extract frames at specified interval
-    await ffmpeg.exec([
-        '-i', inputFilename,
-        '-vf', `fps=1/${interval}`,
-        '-y',
-        'frame_%03d.png'
-    ]);
-
-    self.postMessage({ 
-        type: 'STATUS_UPDATE', 
-        stage: 'Creating slideshow...',
-        details: 'Combining frames with original audio'
-    });
-
-    // Create slideshow with original audio
-    await ffmpeg.exec([
-        '-r', `1/${interval}`,
-        '-i', 'frame_%03d.png',
-        '-i', inputFilename,
-        '-c:v', 'libx264',
-        '-c:a', 'aac',
-        '-pix_fmt', 'yuv420p',
-        '-shortest',
-        '-y',
-        outputFilename
-    ]);
-
-    // Read the output file
-    const outputData = await ffmpeg.readFile(outputFilename);
-    
-    self.postMessage({ 
-        type: 'SLIDESHOW_COMPLETE', 
-        outputData: outputData.buffer,
-        filename: outputFilename
-    });
-
-    // Clean up temporary files
     try {
-        const files = await ffmpeg.listDir('.');
-        for (const file of files) {
-            if (file.name.startsWith('frame_') && file.name.endsWith('.png')) {
-                await ffmpeg.deleteFile(file.name);
+        // Convert File to ArrayBuffer and then to Uint8Array
+        const fileData = await file.arrayBuffer();
+        const fileUint8 = new Uint8Array(fileData);
+
+        // Write the file to FFmpeg's virtual filesystem
+        await ffmpeg.writeFile(inputFilename, fileUint8);
+        
+        // Notify progress
+        self.postMessage({ 
+            type: 'processing-progress', 
+            payload: {
+                progress: 0.1,
+                message: 'Extracting frames...'
             }
+        });
+
+        // Extract frames at specified interval
+        await ffmpeg.exec([
+            '-i', inputFilename,
+            '-vf', `fps=1/${interval}`,
+            '-y',
+            'frame_%03d.png'
+        ]);
+
+        // Notify progress
+        self.postMessage({ 
+            type: 'processing-progress', 
+            payload: {
+                progress: 0.5,
+                message: 'Creating slideshow with audio...'
+            }
+        });
+
+        // Create slideshow with original audio
+        await ffmpeg.exec([
+            '-r', `1/${interval}`,
+            '-i', 'frame_%03d.png',
+            '-i', inputFilename,
+            '-c:v', 'libx264',
+            '-c:a', 'aac',
+            '-pix_fmt', 'yuv420p',
+            '-shortest',
+            '-y',
+            outputFilename
+        ]);
+
+        // Read the output file
+        const outputData = await ffmpeg.readFile(outputFilename);
+        
+        // Send the complete response
+        self.postMessage({ 
+            type: 'processing-complete', 
+            payload: {
+                data: outputData.buffer,
+                fileName: outputFilename
+            }
+        });
+
+        // Clean up temporary files
+        try {
+            // Clean up frame files
+            const files = await ffmpeg.listDir('.');
+            for (const file of files) {
+                if (file.name.startsWith('frame_') && file.name.endsWith('.png')) {
+                    await ffmpeg.deleteFile(file.name);
+                }
+            }
+            
+            // Clean up input file
+            await ffmpeg.deleteFile(inputFilename);
+            await ffmpeg.deleteFile(outputFilename);
+        } catch (e) {
+            // Ignore cleanup errors
+            console.warn('Cleanup error:', e);
         }
-    } catch (e) {
-        // Ignore cleanup errors
+    } catch (error) {
+        self.postMessage({
+            type: 'processing-error',
+            payload: {
+                error: `Error creating slideshow: ${error.message}`
+            }
+        });
     }
 }
 
