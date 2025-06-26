@@ -45,8 +45,19 @@
                         Kosher Video Processor
                     </h1>
                     <p class="app-subtitle">Transform your videos with client-side magic</p>
+                    <button id="toggle-debug-btn" class="btn btn-icon debug-btn" title="Show Debug Panel">
+                        <i class="fas fa-bug"></i>
+                    </button>
                 </div>
                 <div class="header-bg"></div>
+            </header>
+
+            <!-- Debug Header -->
+            <header>
+                <div class="container">
+                    <h1 class="title">Kosher Video</h1>
+                    <button id="show-debug" class="btn btn-icon" title="Show Debug Panel"><i class="fas fa-bug"></i></button>
+                </div>
             </header>
 
             <!-- Main Content -->
@@ -244,6 +255,21 @@
             </footer>
         </div>
 
+        <!-- Debug Panel -->
+        <div id="debug-panel" class="debug-panel hidden">
+            <div class="debug-header">
+                <h3><i class="fas fa-bug"></i> Debug Console</h3>
+                <div class="debug-controls">
+                    <button id="export-logs" class="btn btn-sm" title="Export Logs"><i class="fas fa-download"></i></button>
+                    <button id="clear-logs" class="btn btn-sm" title="Clear Logs"><i class="fas fa-trash"></i></button>
+                    <button id="toggle-debug-panel" class="btn btn-sm" title="Toggle Panel"><i class="fas fa-chevron-down"></i></button>
+                </div>
+            </div>
+            <div class="debug-content">
+                <div id="debug-log"></div>
+            </div>
+        </div>
+
         <!-- Error Modal -->
         <div id="error-modal" class="modal hidden">
             <div class="modal-content">
@@ -263,23 +289,170 @@
     </div>
 
     <!-- Scripts -->
-    <!-- Add this debug script before loading the main app -->
+    <!-- Debug script with enhanced logging -->
     <script>
-        // Debug utilities
-        console.log('Debug mode enabled');
+        // Debug logging utility
+        window.KosherLogger = {
+            logs: [],
+            maxLogs: 100,
+            
+            log: function(component, message, data) {
+                const timestamp = new Date().toISOString();
+                const entry = {
+                    time: timestamp,
+                    component: component,
+                    message: message,
+                    data: data || null
+                };
+                
+                console.log(`[${timestamp}] [${component}] ${message}`, data || '');
+                
+                this.logs.push(entry);
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.shift();
+                }
+                
+                // Update log display if it exists
+                this.updateLogDisplay();
+            },
+            
+            error: function(component, message, error) {
+                const timestamp = new Date().toISOString();
+                const entry = {
+                    time: timestamp,
+                    component: component,
+                    message: message,
+                    error: error || null,
+                    type: 'error'
+                };
+                
+                console.error(`[${timestamp}] [${component}] ${message}`, error || '');
+                
+                this.logs.push(entry);
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.shift();
+                }
+                
+                // Update log display if it exists
+                this.updateLogDisplay();
+            },
+            
+            updateLogDisplay: function() {
+                const logContainer = document.getElementById('debug-log-content');
+                if (logContainer) {
+                    logContainer.innerHTML = this.logs.map(entry => {
+                        const type = entry.type === 'error' ? 'error-log' : 'info-log';
+                        return `<div class="log-entry ${type}">
+                                  <span class="log-time">${entry.time.split('T')[1].split('.')[0]}</span>
+                                  <span class="log-component">[${entry.component}]</span>
+                                  <span class="log-message">${entry.message}</span>
+                                </div>`;
+                    }).join('');
+                    
+                    // Auto-scroll to bottom
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+            },
+            
+            getLogs: function() {
+                return this.logs;
+            },
+            
+            exportLogs: function() {
+                const logText = this.logs.map(entry => 
+                    `[${entry.time}] [${entry.component}] ${entry.message} ${entry.data ? JSON.stringify(entry.data) : ''}`
+                ).join('\n');
+                
+                const blob = new Blob([logText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'kosher-video-debug-logs.txt';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // Clean up the URL
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            }
+        };
+        
+        // Initialize logging
+        KosherLogger.log('System', 'Debug mode enabled');
+        
+        // Set up global error handling
         window.onerror = function(message, source, lineno, colno, error) {
-            console.error('Global error:', message, error);
-            alert('Error: ' + message);
+            KosherLogger.error('Global', `Error: ${message} at ${source}:${lineno}:${colno}`, error);
             return false;
         };
         
+        // Browser compatibility checks
+        KosherLogger.log('System', 'Checking browser compatibility');
+        
+        // Get browser info
+        const userAgent = navigator.userAgent;
+        let browserName = 'Unknown';
+        if (userAgent.match(/edge|edgios|edga|edg/i)) {
+            browserName = 'Microsoft Edge';
+        } else if (userAgent.match(/chrome|chromium|crios/i)) {
+            browserName = 'Chrome';
+        } else if (userAgent.match(/firefox|fxios/i)) {
+            browserName = 'Firefox';
+        } else if (userAgent.match(/safari/i)) {
+            browserName = 'Safari';
+        } else if (userAgent.match(/opr\//i)) {
+            browserName = 'Opera';
+        }
+        
+        KosherLogger.log('System', `Browser detected: ${browserName}`, { userAgent });
+        
         // Check for SharedArrayBuffer support (required by FFmpeg.wasm)
         try {
-            new SharedArrayBuffer(1);
-            console.log('SharedArrayBuffer is supported');
+            if (typeof SharedArrayBuffer === 'function') {
+                new SharedArrayBuffer(1);
+                KosherLogger.log('System', 'SharedArrayBuffer is supported');
+            } else {
+                throw new Error('SharedArrayBuffer is not defined');
+            }
         } catch (e) {
-            console.error('SharedArrayBuffer not supported', e);
-            alert('Your browser does not support SharedArrayBuffer. This is required for video processing. Please use Chrome or Firefox with proper COOP/COEP headers.');
+            KosherLogger.error('System', 'SharedArrayBuffer not supported', e);
+            
+            // Create a more informative alert for Edge users
+            if (browserName === 'Microsoft Edge') {
+                const message = `⚠️ Microsoft Edge Configuration Required ⚠️\n\n` +
+                      `To use this application in Microsoft Edge, you need to enable SharedArrayBuffer:\n\n` +
+                      `Method 1 (Recommended):\n` +
+                      `1. Type "edge://flags" in your address bar and press Enter\n` +
+                      `2. Search for "SharedArrayBuffer"\n` +
+                      `3. Enable "SharedArrayBuffer support without header requirement"\n` +
+                      `4. Click "Restart" at the bottom\n` +
+                      `5. Return to this page and refresh\n\n` +
+                      `Method 2 (Alternative):\n` +
+                      `1. Type "edge://settings/privacy" in your address bar\n` +
+                      `2. Turn OFF "Enhance your security on the web"\n` +
+                      `3. Restart Edge and return to this page\n\n` +
+                      `These settings are required because Edge has strict security that blocks features needed for video processing.`;
+                
+                // Log this issue with more detail
+                KosherLogger.error('System', 'Edge SharedArrayBuffer configuration required', {
+                    browser: browserName,
+                    userAgent: navigator.userAgent,
+                    message: 'Edge requires enabling SharedArrayBuffer via flags'
+                });
+                
+                alert(message);
+                
+                // Show debug panel automatically for Edge users to help troubleshooting
+                setTimeout(() => {
+                    const debugPanel = document.getElementById('debug-panel');
+                    if (debugPanel) {
+                        debugPanel.classList.remove('hidden');
+                    }
+                }, 1000);
+            } else {
+                alert('Your browser does not support SharedArrayBuffer. This is required for video processing. Please use Chrome or Firefox with proper COOP/COEP headers.');
+            }
         }
     </script>
     

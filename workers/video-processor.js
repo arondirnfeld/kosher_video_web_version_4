@@ -4,25 +4,87 @@
 let ffmpeg = null;
 let isLoaded = false;
 
+// Enhanced worker logging
+const WorkerLogger = {
+    log: function(component, message, data) {
+        console.log(`[Worker][${component}] ${message}`, data || '');
+        this._sendLogToMain('info', component, message, data);
+    },
+    debug: function(component, message, data) {
+        console.debug(`[Worker][${component}] ${message}`, data || '');
+        this._sendLogToMain('debug', component, message, data);
+    },
+    warn: function(component, message, data) {
+        console.warn(`[Worker][${component}] ${message}`, data || '');
+        this._sendLogToMain('warn', component, message, data);
+    },
+    error: function(component, message, error) {
+        console.error(`[Worker][${component}] ${message}`, error || '');
+        this._sendLogToMain('error', component, message, error);
+    },
+    // Send logs to main thread for unified logging
+    _sendLogToMain: function(level, component, message, data) {
+        try {
+            self.postMessage({
+                type: 'worker-log',
+                payload: {
+                    level,
+                    component: `Worker:${component}`,
+                    message,
+                    data: data ? (typeof data === 'object' ? JSON.stringify(data) : data) : null,
+                    timestamp: new Date().toISOString()
+                }
+            });
+        } catch (e) {
+            // In case of circular references or other JSON errors
+            console.error('Error sending log to main thread:', e);
+        }
+    }
+};
+
+WorkerLogger.log('Init', 'Video processor worker starting');
+
 // Import FFmpeg in worker context - Using relative paths based on worker location
-self.importScripts('../static/ffmpeg.js');
-self.importScripts('../static/ffmpeg-util.js');
+try {
+    WorkerLogger.log('Init', 'Importing FFmpeg scripts');
+    self.importScripts('../static/ffmpeg.js');
+    self.importScripts('../static/ffmpeg-util.js');
+    WorkerLogger.log('Init', 'FFmpeg scripts imported successfully');
+} catch (error) {
+    WorkerLogger.error('Init', 'Failed to import FFmpeg scripts', error);
+    self.postMessage({ 
+        type: 'ffmpeg-load-error', 
+        payload: { 
+            error: `Failed to import FFmpeg scripts: ${error.message}` 
+        } 
+    });
+}
 
 self.onmessage = async function(e) {
     const { type, payload } = e.data;
+    WorkerLogger.log('Message', `Received message: ${type}`, payload);
 
     try {
         switch (type) {
             case 'load-ffmpeg':
+                WorkerLogger.log('Message', 'Starting FFmpeg loading sequence');
                 try {
+                    // Check if SharedArrayBuffer is available in this context
+                    if (typeof SharedArrayBuffer !== 'function') {
+                        WorkerLogger.error('Message', 'SharedArrayBuffer not available in worker context');
+                        throw new Error('SharedArrayBuffer is required but not available in this browser context');
+                    }
+                    
                     await initializeFFmpeg();
+                    WorkerLogger.log('Message', 'FFmpeg loaded successfully, notifying main thread');
                     self.postMessage({ type: 'ffmpeg-loaded' });
                 } catch (error) {
-                    console.error('FFmpeg initialization error:', error);
+                    WorkerLogger.error('Message', 'FFmpeg initialization failed', error);
                     self.postMessage({ 
                         type: 'ffmpeg-load-error', 
                         payload: { 
-                            error: `Failed to load FFmpeg: ${error.message}` 
+                            error: `Failed to load FFmpeg: ${error.message}`,
+                            stack: error.stack
                         } 
                     });
                 }
@@ -50,58 +112,143 @@ self.onmessage = async function(e) {
 };
 
 async function initializeFFmpeg() {
-    if (isLoaded) return;
-
-    // Get FFmpeg constructor
-    let FFmpegClass;
-    if (typeof FFmpeg !== 'undefined') {
-        FFmpegClass = FFmpeg.FFmpeg || FFmpeg;
-    } else {
-        throw new Error('FFmpeg not available in worker');
+    if (isLoaded) {
+        WorkerLogger.log('FFmpeg', 'FFmpeg already loaded, skipping initialization');
+        return;
     }
 
-    ffmpeg = new FFmpegClass();
+    WorkerLogger.log('FFmpeg', 'Starting FFmpeg initialization');
 
-    // Set up event listeners
-    ffmpeg.on('log', ({ message }) => {
-        self.postMessage({ 
-            type: 'processing-progress', 
-            payload: {
-                progress: 0,
-                message: message
-            }
-        });
-    });
-
-    ffmpeg.on('progress', ({ progress }) => {
-        self.postMessage({ 
-            type: 'processing-progress', 
-            payload: {
-                progress: progress,
-                message: `Processing: ${Math.round(progress * 100)}%`
-            }
-        });
-    });
-
-    // Load FFmpeg core with local static files - Using relative paths based on worker location
+    // Check SharedArrayBuffer support
+    WorkerLogger.log('FFmpeg', 'Checking SharedArrayBuffer support');
+    let hasSharedArrayBuffer = false;
     try {
-        await ffmpeg.load({
-            coreURL: '../static/ffmpeg-core.js',
-            wasmURL: '../static/ffmpeg-core.wasm',
-            workerURL: '../static/ffmpeg-core.worker.js'
-        });
-    } catch (error) {
-        console.error('Error loading FFmpeg:', error);
+        if (typeof SharedArrayBuffer === 'function') {
+            new SharedArrayBuffer(1);
+            hasSharedArrayBuffer = true;
+            WorkerLogger.log('FFmpeg', 'SharedArrayBuffer is supported in worker');
+        } else {
+            throw new Error('SharedArrayBuffer is not defined');
+        }
+    } catch (e) {
+        WorkerLogger.error('FFmpeg', 'SharedArrayBuffer not supported in worker context', e);
         self.postMessage({ 
-            type: 'processing-error', 
-            payload: {
-                error: `Failed to load FFmpeg: ${error.message}`
-            }
+            type: 'ffmpeg-load-error', 
+            payload: { 
+                error: 'SharedArrayBuffer is required for video processing. ' + e.message
+            } 
+        });
+        throw new Error('SharedArrayBuffer is required for video processing. Error: ' + e.message);
+    }
+
+    // Get FFmpeg constructor with detailed logging
+    let FFmpegClass;
+    try {
+        WorkerLogger.debug('FFmpeg', 'Searching for FFmpeg in available scopes', {
+            'self.FFmpeg exists': typeof self.FFmpeg !== 'undefined',
+            'FFmpeg exists': typeof FFmpeg !== 'undefined',
+            'self.createFFmpeg exists': typeof self.createFFmpeg !== 'undefined'
+        });
+        
+        if (typeof self.FFmpeg !== 'undefined') {
+            WorkerLogger.log('FFmpeg', 'FFmpeg found in global scope');
+            FFmpegClass = self.FFmpeg.FFmpeg || self.FFmpeg;
+            WorkerLogger.debug('FFmpeg', 'FFmpeg constructor from global scope', {
+                isFunction: typeof FFmpegClass === 'function',
+                constructor: FFmpegClass?.name || 'Unknown'
+            });
+        } else if (typeof FFmpeg !== 'undefined') {
+            WorkerLogger.log('FFmpeg', 'FFmpeg found in local scope');
+            FFmpegClass = FFmpeg.FFmpeg || FFmpeg;
+            WorkerLogger.debug('FFmpeg', 'FFmpeg constructor from local scope', {
+                isFunction: typeof FFmpegClass === 'function',
+                constructor: FFmpegClass?.name || 'Unknown'
+            });
+        } else {
+            WorkerLogger.error('FFmpeg', 'FFmpeg not found in any scope');
+            throw new Error('FFmpeg not available in worker');
+        }
+        
+        WorkerLogger.log('FFmpeg', 'FFmpeg constructor obtained successfully');
+    } catch (error) {
+        WorkerLogger.error('FFmpeg', 'Error getting FFmpeg constructor', error);
+        self.postMessage({ 
+            type: 'ffmpeg-load-error', 
+            payload: { 
+                error: `FFmpeg not available: ${error.message}` 
+            } 
         });
         throw error;
     }
 
-    isLoaded = true;
+    try {
+        WorkerLogger.log('FFmpeg', 'Creating FFmpeg instance');
+        ffmpeg = new FFmpegClass();
+        WorkerLogger.log('FFmpeg', 'FFmpeg instance created');
+
+        // Set up event listeners
+        ffmpeg.on('log', ({ message }) => {
+            WorkerLogger.log('FFmpeg', `Log: ${message}`);
+            self.postMessage({ 
+                type: 'processing-progress', 
+                payload: {
+                    progress: 0,
+                    message: message
+                }
+            });
+        });
+
+        ffmpeg.on('progress', ({ progress }) => {
+            WorkerLogger.log('FFmpeg', `Progress: ${Math.round(progress * 100)}%`);
+            self.postMessage({ 
+                type: 'processing-progress', 
+                payload: {
+                    progress: progress,
+                    message: `Processing: ${Math.round(progress * 100)}%`
+                }
+            });
+        });
+
+        // Load FFmpeg core with local static files
+        const corePaths = {
+            coreURL: '../static/ffmpeg-core.js',
+            wasmURL: '../static/ffmpeg-core.wasm',
+            workerURL: '../static/ffmpeg-core.worker.js'
+        };
+        
+        WorkerLogger.log('FFmpeg', 'Loading FFmpeg core files', corePaths);
+        
+        // Verify file existence by logging
+        WorkerLogger.debug('FFmpeg', 'Core file paths will be resolved relative to worker location', {
+            workerLocation: self.location ? self.location.href : 'Unknown'
+        });
+        
+        // Log before attempting to load
+        WorkerLogger.log('FFmpeg', 'Starting FFmpeg load process');
+
+        await ffmpeg.load({
+            coreURL: corePaths.coreURL,
+            wasmURL: corePaths.wasmURL,
+            workerURL: corePaths.workerURL,
+            // Add progress logging for the load operation
+            progress: ({ ratio }) => {
+                WorkerLogger.log('FFmpeg', `Loading progress: ${Math.round(ratio * 100)}%`);
+            }
+        });
+
+        WorkerLogger.log('FFmpeg', 'FFmpeg core loaded successfully');
+        isLoaded = true;
+        
+    } catch (error) {
+        WorkerLogger.error('FFmpeg', 'Error loading FFmpeg', error);
+        self.postMessage({ 
+            type: 'ffmpeg-load-error', 
+            payload: {
+                error: `Failed to load FFmpeg: ${error.message || 'Unknown error'}`
+            }
+        });
+        throw error;
+    }
 }
 
 async function loadFile(filename, fileData) {
