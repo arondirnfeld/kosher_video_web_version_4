@@ -185,10 +185,17 @@ class KosherVideoProcessor {
 
     // ===== WORKER INITIALIZATION =====
     async initializeWorker() {
+        console.log('Initializing web worker...');
         this.worker = new Worker('./workers/video-processor.js');
+        
+        this.worker.onerror = (error) => {
+            console.error('Worker error:', error);
+            this.showErrorModal(`Worker error: ${error.message || 'Unknown error'}`);
+        };
 
         this.worker.onmessage = (event) => {
             const { type, payload } = event.data;
+            console.log('Worker message:', type);
 
             switch (type) {
                 case 'ffmpeg-loaded':
@@ -216,7 +223,23 @@ class KosherVideoProcessor {
                     this.showErrorModal(payload.error);
                     break;
                 case 'ffmpeg-load-error':
-                    this.showErrorModal('Failed to load the video processing engine. Please try refreshing the page.');
+                    let errorMsg = 'Failed to load video processing engine.<br><br>' +
+                                  'The video processing library could not be loaded. This may be due to:<br>' +
+                                  '<br>• Slow internet connection' + 
+                                  '<br>• Browser compatibility issues' +
+                                  '<br>• Ad blockers blocking resources' +
+                                  '<br>• Local file restrictions (try using a web server)' +
+                                  '<br><br>Please try:' +
+                                  '<br>1. Using a local web server (python -m http.server)' +
+                                  '<br>2. Refreshing the page' +
+                                  '<br>3. Disabling ad blockers' +
+                                  '<br>4. Using a different browser (Chrome/Firefox recommended)';
+                    
+                    if (payload && payload.error) {
+                        errorMsg += '<br><br>Technical details: ' + payload.error;
+                    }
+                    
+                    this.showErrorModal(errorMsg);
                     break;
             }
         };
@@ -564,6 +587,12 @@ class KosherVideoProcessor {
         });
         
         console.log('Error displayed:', message);
+    }
+
+    // Display error modal with formatted HTML message
+    showErrorModal(message) {
+        // Use the existing showError method
+        this.showError(message);
     }
 
     hideErrorModal() {

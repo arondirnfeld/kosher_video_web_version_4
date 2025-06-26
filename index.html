@@ -263,6 +263,26 @@
     </div>
 
     <!-- Scripts -->
+    <!-- Add this debug script before loading the main app -->
+    <script>
+        // Debug utilities
+        console.log('Debug mode enabled');
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('Global error:', message, error);
+            alert('Error: ' + message);
+            return false;
+        };
+        
+        // Check for SharedArrayBuffer support (required by FFmpeg.wasm)
+        try {
+            new SharedArrayBuffer(1);
+            console.log('SharedArrayBuffer is supported');
+        } catch (e) {
+            console.error('SharedArrayBuffer not supported', e);
+            alert('Your browser does not support SharedArrayBuffer. This is required for video processing. Please use Chrome or Firefox with proper COOP/COEP headers.');
+        }
+    </script>
+    
     <script src="./static/ffmpeg.js"></script>
     <script src="./static/ffmpeg-util.js"></script>
     <script src="./static/anime.min.js"></script>

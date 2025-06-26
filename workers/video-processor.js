@@ -4,7 +4,7 @@
 let ffmpeg = null;
 let isLoaded = false;
 
-// Import FFmpeg in worker context
+// Import FFmpeg in worker context - Using relative paths based on worker location
 self.importScripts('../static/ffmpeg.js');
 self.importScripts('../static/ffmpeg-util.js');
 
@@ -14,8 +14,18 @@ self.onmessage = async function(e) {
     try {
         switch (type) {
             case 'load-ffmpeg':
-                await initializeFFmpeg();
-                self.postMessage({ type: 'ffmpeg-loaded' });
+                try {
+                    await initializeFFmpeg();
+                    self.postMessage({ type: 'ffmpeg-loaded' });
+                } catch (error) {
+                    console.error('FFmpeg initialization error:', error);
+                    self.postMessage({ 
+                        type: 'ffmpeg-load-error', 
+                        payload: { 
+                            error: `Failed to load FFmpeg: ${error.message}` 
+                        } 
+                    });
+                }
                 break;
 
             case 'run-command':
@@ -55,24 +65,41 @@ async function initializeFFmpeg() {
     // Set up event listeners
     ffmpeg.on('log', ({ message }) => {
         self.postMessage({ 
-            type: 'LOG', 
-            message: message 
+            type: 'processing-progress', 
+            payload: {
+                progress: 0,
+                message: message
+            }
         });
     });
 
     ffmpeg.on('progress', ({ progress }) => {
         self.postMessage({ 
-            type: 'PROGRESS', 
-            progress: progress 
+            type: 'processing-progress', 
+            payload: {
+                progress: progress,
+                message: `Processing: ${Math.round(progress * 100)}%`
+            }
         });
     });
 
-    // Load FFmpeg core with local static files
-    await ffmpeg.load({
-        coreURL: '../static/ffmpeg-core.js',
-        wasmURL: '../static/ffmpeg-core.wasm',
-        classWorkerURL: '../static/ffmpeg-core.worker.js'
-    });
+    // Load FFmpeg core with local static files - Using relative paths based on worker location
+    try {
+        await ffmpeg.load({
+            coreURL: '../static/ffmpeg-core.js',
+            wasmURL: '../static/ffmpeg-core.wasm',
+            workerURL: '../static/ffmpeg-core.worker.js'
+        });
+    } catch (error) {
+        console.error('Error loading FFmpeg:', error);
+        self.postMessage({ 
+            type: 'processing-error', 
+            payload: {
+                error: `Failed to load FFmpeg: ${error.message}`
+            }
+        });
+        throw error;
+    }
 
     isLoaded = true;
 }
