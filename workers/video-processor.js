@@ -5,8 +5,8 @@ let ffmpeg = null;
 let isLoaded = false;
 
 // Import FFmpeg in worker context
-self.importScripts('./static/ffmpeg.js');
-self.importScripts('./static/ffmpeg-util.js');
+self.importScripts('../static/ffmpeg.js');
+self.importScripts('../static/ffmpeg-util.js');
 
 self.onmessage = async function(e) {
     const { type, data } = e.data;
@@ -72,9 +72,9 @@ async function initializeFFmpeg() {
 
     // Load FFmpeg core with local static files
     await ffmpeg.load({
-        coreURL: './static/ffmpeg-core.js',
-        wasmURL: './static/ffmpeg-core.wasm',
-        classWorkerURL: './static/ffmpeg-core.worker.js'
+        coreURL: '../static/ffmpeg-core.js',
+        wasmURL: '../static/ffmpeg-core.wasm',
+        classWorkerURL: '../static/ffmpeg-core.worker.js'
     });
 
     isLoaded = true;

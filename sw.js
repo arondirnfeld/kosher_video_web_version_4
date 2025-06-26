@@ -1,18 +1,22 @@
 // ===== SERVICE WORKER FOR KOSHER VIDEO PROCESSOR =====
 // Provides offline capabilities and caching for better performance
 
-const CACHE_NAME = 'kosher-video-processor-v1';
+const CACHE_NAME = 'kosher-video-processor-v1.1';
 const urlsToCache = [
     './',
     './index.html',
     './styles.css',
     './app.js',
+    './workers/video-processor.js',
     './manifest.json',
+    './static/ffmpeg.js',
+    './static/ffmpeg-util.js',
+    './static/ffmpeg-core.js',
+    './static/ffmpeg-core.wasm',
+    './static/ffmpeg-core.worker.js',
+    './static/anime.min.js',
     'https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap',
-    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css',
-    'https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js',
-    'https://unpkg.com/@ffmpeg/ffmpeg@0.12.7/dist/umd/ffmpeg.js',
-    'https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css'
 ];
 
 // Install event - cache resources
